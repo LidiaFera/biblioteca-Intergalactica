@@ -8,7 +8,7 @@
 
 **Intergalático** é uma biblioteca virtual com tema cósmico e design sofisticado, desenvolvida para oferecer uma experiência imersiva de leitura e exploração de livros. O projeto combina um frontend moderno em React com autenticação segura e banco de dados em tempo real via Supabase.
 
-🚀 **Acesse a aplicação em produção**: [https://intergalatico.vercel.app](https://intergalatico.vercel.app)
+🚀 **Acesse a aplicação em produção**: [https://biblioteca-intergalactica.com/](https://biblioteca-intergalactica-otk4.onrender.com/)
 
 ---
 
