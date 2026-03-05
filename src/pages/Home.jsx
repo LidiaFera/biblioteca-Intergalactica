@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import BookCard from '../components/BookCard'
 import Particles from '../components/Particles'
 import { useAuth } from '../contexts/AuthContext'
-import logo from 'C:/Users/Lídia/OneDrive/Desktop/Intergalatico/intergalatico/frontend/src/assets/inter.png'
+import logo from '/src/assets/inter.png'
 import { Menu, X, Search, HomeIcon, BookOpen, Star, Printer, User, HelpCircle } from 'lucide-react'
 
 // Função para converter link do Google Drive em link de visualização
