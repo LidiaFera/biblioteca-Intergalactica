@@ -1,13 +1,19 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { Link, useLocation } from 'react-router-dom';
+import { Menu, X, HomeIcon, BookOpen, Star, User } from 'lucide-react';
+
+import { useAuth } from '../contexts/AuthContext';
+import useLivros from '../hooks/useLivros';
+import useLeituras from '../hooks/useLeituras';
+import useSearch from '../hooks/useSearch';
+import useFavoritos from '../hooks/useFavoritos';
+
 import BookCard from '../components/BookCard';
 import Particles from '../components/Particles';
-import { useAuth } from '../contexts/AuthContext';
 import logo from '../assets/inter.png';
-import { Menu, X, Search, HomeIcon, BookOpen, Star, User } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
 
-// Função para converter link do Google Drive em link de visualização
+// Função utilitária (pode ser movida para um arquivo separado)
 function getDrivePreviewUrl(url) {
   if (!url) return url;
   const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
@@ -18,63 +24,26 @@ export default function Home() {
   const { user, signOut } = useAuth();
   const location = useLocation();
 
-  const [livros, setLivros] = useState([]);
-  const [lendoAtualmente, setLendoAtualmente] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filteredLivros, setFilteredLivros] = useState([]);
+  
+  // Hooks personalizados
+  const { livros, loading: livrosLoading } = useLivros();
+  const { leiturasIds } = useLeituras(user, livros);
+  const { searchTerm, setSearchTerm, filteredLivros } = useSearch(livros);
+  const { isFavorito, addFavorito, removeFavorito } = useFavoritos(user);
 
-  // Buscar livros do Supabase
+  // Estado local para "Continuar Lendo" (baseado nas leituras)
+  const [lendoAtualmente, setLendoAtualmente] = useState([]);
+
+  // Atualiza a lista "Continuar Lendo" sempre que livros ou leituras mudarem
   useEffect(() => {
-    async function fetchLivros() {
-      const { data, error } = await supabase
-        .from('livros')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Erro ao buscar livros:', error);
-      } else {
-        setLivros(data || []);
-      }
-      setLoading(false);
-    }
-    fetchLivros();
-  }, []);
-
-  // Buscar leituras do usuário logado
-  useEffect(() => {
-    if (!user || livros.length === 0) return;
-
-    async function fetchLeituras() {
-      const { data, error } = await supabase
-        .from('leituras')
-        .select('livro_id')
-        .eq('user_id', user.id);
-
-      if (error) {
-        console.error('Erro ao buscar leituras:', error);
-      } else {
-        const ids = data.map(item => item.livro_id);
-        const livrosLidos = livros.filter(livro => ids.includes(livro.id));
-        setLendoAtualmente(livrosLidos.slice(0, 6));
-      }
-    }
-    fetchLeituras();
-  }, [user, livros]);
-
-  // Filtro de busca
-  useEffect(() => {
-    if (searchTerm.trim() === '') {
-      setFilteredLivros(livros);
+    if (livros.length > 0 && leiturasIds.size > 0) {
+      const livrosLidos = livros.filter(livro => leiturasIds.has(livro.id));
+      setLendoAtualmente(livrosLidos.slice(0, 6));
     } else {
-      const filtered = livros.filter(livro =>
-        livro.titulo.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      setFilteredLivros(filtered);
+      setLendoAtualmente([]);
     }
-  }, [searchTerm, livros]);
+  }, [livros, leiturasIds]);
 
   const handleSelectLivro = async (livro) => {
     if (!livro.pdf_url) {
@@ -84,14 +53,26 @@ export default function Home() {
     const previewUrl = getDrivePreviewUrl(livro.pdf_url);
     window.open(previewUrl, '_blank');
 
+    // Registra a leitura (se usuário logado)
     if (user) {
-      const { error } = await supabase
-        .from('leituras')
-        .upsert(
-          { user_id: user.id, livro_id: livro.id },
-          { onConflict: 'user_id, livro_id' }
-        );
-      if (error) console.error('Erro ao registrar leitura:', error);
+      try {
+        await supabase
+          .from('leituras')
+          .upsert(
+            { user_id: user.id, livro_id: livro.id },
+            { onConflict: 'user_id, livro_id' }
+          );
+      } catch (error) {
+        console.error('Erro ao registrar leitura:', error);
+      }
+    }
+  };
+
+  const handleToggleFavorito = (livroId) => {
+    if (isFavorito(livroId)) {
+      removeFavorito(livroId);
+    } else {
+      addFavorito(livroId);
     }
   };
 
@@ -110,9 +91,9 @@ export default function Home() {
     { icon: User, label: 'Minha Conta', path: '/minha-conta', active: location.pathname === '/minha-conta' },
   ];
 
-  if (loading) {
+  if (livrosLoading) {
     return (
-      <div className="min-h-screen bg-linear-to-br from-gray-900 via-purple-900 to-indigo-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-indigo-900 flex items-center justify-center">
         <div className="text-white text-2xl font-light animate-pulse">
           Carregando biblioteca galáctica...
         </div>
@@ -132,6 +113,7 @@ export default function Home() {
         {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
 
+      {/* Overlay para mobile */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
@@ -152,9 +134,9 @@ export default function Home() {
           </div>
 
           <nav className="flex-1 space-y-2">
-            {menuItems.map((item, index) => (
+            {menuItems.map((item) => (
               <Link
-                key={index}
+                key={item.path}
                 to={item.path}
                 onClick={() => setSidebarOpen(false)}
                 className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
@@ -189,7 +171,7 @@ export default function Home() {
         <div className="mb-10">
           <h1 className="text-5xl md:text-6xl font-serif font-bold text-white">
             Os melhores{' '}
-            <span className="bg-linear-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
               livros
             </span>
           </h1>
@@ -209,11 +191,11 @@ export default function Home() {
           />
         </div>
 
-        {/* Seção "Continuar Lendo" (aparece apenas se houver livros lidos) */}
+        {/* Seção "Continuar Lendo" */}
         {lendoAtualmente.length > 0 && (
           <section className="mb-16">
             <h2 className="text-2xl font-serif text-white mb-6 flex items-center">
-              <span className="w-1 h-8 bg-green-500 mr-3 rounded-full"></span>
+              <span className="w-1 h-8 bg-green-500 mr-3 rounded-full" />
               Continuar Lendo
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
@@ -224,6 +206,8 @@ export default function Home() {
                   autor={livro.autor}
                   imagemUrl={livro.imagem_url}
                   onSelect={() => handleSelectLivro(livro)}
+                  isFavorito={isFavorito(livro.id)}
+                  onToggleFavorito={() => handleToggleFavorito(livro.id)}
                 />
               ))}
             </div>
@@ -233,7 +217,7 @@ export default function Home() {
         {/* Seção "Todos os Livros" */}
         <section>
           <h2 className="text-2xl font-serif text-white mb-6 flex items-center">
-            <span className="w-1 h-8 bg-pink-500 mr-3 rounded-full"></span>
+            <span className="w-1 h-8 bg-pink-500 mr-3 rounded-full" />
             Todos os Livros
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
@@ -244,6 +228,8 @@ export default function Home() {
                 autor={livro.autor}
                 imagemUrl={livro.imagem_url}
                 onSelect={() => handleSelectLivro(livro)}
+                isFavorito={isFavorito(livro.id)}
+                onToggleFavorito={() => handleToggleFavorito(livro.id)}
               />
             ))}
           </div>
