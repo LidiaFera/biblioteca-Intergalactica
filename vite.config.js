@@ -6,5 +6,8 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-  ],
-})
+  ], 
+  server: {
+    historyApiFallback: true, // garante que rotas SPA funcionem no dev
+  },
+});
