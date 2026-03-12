@@ -76,6 +76,23 @@ export default function Home() {
     }
   };
 
+  const handleRemoveLeitura = async (livroId) => {
+  if (!user) return;
+  try {
+    const { error } = await supabase
+      .from('leituras')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('livro_id', livroId);
+    if (error) throw error;
+    // Atualiza o estado local removendo o livro
+    setLendoAtualmente(prev => prev.filter(livro => livro.id !== livroId));
+  } catch (error) {
+    console.error('Erro ao remover leitura:', error);
+    alert('Não foi possível remover a leitura.');
+  }
+};
+
   const handleLogout = async () => {
     try {
       await signOut();
@@ -193,26 +210,28 @@ export default function Home() {
 
         {/* Seção "Continuar Lendo" */}
         {lendoAtualmente.length > 0 && (
-          <section className="mb-16">
-            <h2 className="text-2xl font-serif text-white mb-6 flex items-center">
-              <span className="w-1 h-8 bg-green-500 mr-3 rounded-full" />
-              Continuar Lendo
-            </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
-              {lendoAtualmente.map((livro) => (
-                <BookCard
-                  key={livro.id}
-                  titulo={livro.titulo}
-                  autor={livro.autor}
-                  imagemUrl={livro.imagem_url}
-                  onSelect={() => handleSelectLivro(livro)}
-                  isFavorito={isFavorito(livro.id)}
-                  onToggleFavorito={() => handleToggleFavorito(livro.id)}
-                />
-              ))}
-            </div>
-          </section>
-        )}
+  <section className="mb-16">
+    <h2 className="text-2xl font-serif text-white mb-6 flex items-center">
+      <span className="w-1 h-8 bg-green-500 mr-3 rounded-full" />
+      Continuar Lendo
+    </h2>
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+      
+      {lendoAtualmente.map((livro) => (
+        <BookCard
+          key={livro.id}
+          titulo={livro.titulo}
+          autor={livro.autor}
+          imagemUrl={livro.imagem_url}
+          onSelect={() => handleSelectLivro(livro)}
+          isFavorito={isFavorito(livro.id)}
+          onToggleFavorito={() => handleToggleFavorito(livro.id)}
+          onRemove={() => handleRemoveLeitura(livro.id)} // <-- ícone de lixeira aparecerá
+        />
+      ))}
+    </div>
+  </section>
+)}
 
         {/* Seção "Todos os Livros" */}
         <section>

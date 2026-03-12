@@ -1,4 +1,4 @@
-import { BookOpen, Star } from 'lucide-react';
+import { BookOpen, Star, Trash2 } from 'lucide-react';
 
 export default function BookCard({ 
   titulo, 
@@ -6,12 +6,17 @@ export default function BookCard({
   imagemUrl, 
   onSelect, 
   isFavorito = false, 
-  onToggleFavorito 
+  onToggleFavorito,
+  onRemove // nova prop opcional
 }) {
-  // Evita que o clique no botão de favorito também acione onSelect
   const handleFavoritoClick = (e) => {
     e.stopPropagation();
     if (onToggleFavorito) onToggleFavorito();
+  };
+
+  const handleRemoveClick = (e) => {
+    e.stopPropagation();
+    if (onRemove) onRemove();
   };
 
   return (
@@ -33,7 +38,7 @@ export default function BookCard({
         )}
       </div>
 
-      {/* Botão de favorito */}
+      {/* Botão de favorito (canto superior direito) */}
       <button
         onClick={handleFavoritoClick}
         className="absolute top-2 right-2 z-10 p-2 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-colors"
@@ -43,6 +48,16 @@ export default function BookCard({
           className={isFavorito ? 'fill-red-500 text-red-500' : 'text-white'}
         />
       </button>
+
+      {/* Botão de remover (lixeira) - aparece apenas se onRemove for fornecido */}
+      {onRemove && (
+        <button
+          onClick={handleRemoveClick}
+          className="absolute top-2 left-2 z-10 p-2 rounded-full bg-black/40 backdrop-blur-sm hover:bg-red-600/60 transition-colors"
+        >
+          <Trash2 size={20} className="text-white" />
+        </button>
+      )}
 
       <div className="p-3 bg-gradient-to-t from-black/80 to-transparent absolute bottom-0 left-0 right-0 text-white transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
         <h3 className="font-semibold text-sm line-clamp-2">{titulo}</h3>
